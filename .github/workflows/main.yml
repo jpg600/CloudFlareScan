@@ -1,0 +1,42 @@
+name: Build Kivy Android APK with Buildozer
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出你的Python代码
+        uses: actions/checkout@v4
+
+      - name: 安装Ubuntu依赖环境
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+
+      - name: 配置Java环境
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+
+      - name: 安装Python虚拟环境&Buildozer
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install buildozer cython==0.29.37
+
+      - name: 配置Buildozer代理（解决GitHub下载慢/失败，和你本地代理逻辑一致）
+        run: |
+          export HTTP_PROXY=http://127.0.0.1:7890
+          export HTTPS_PROXY=http://127.0.0.1:7890
+          # 执行打包
+          buildozer android debug
+
+      - name: 上传生成的APK到GitHub发布页
+        uses: actions/upload-artifact@v4
+        with:
+          name: kivy-apk-release
+          path: bin/*.apk
