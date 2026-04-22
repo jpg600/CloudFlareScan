@@ -1,42 +1,47 @@
-name: Build Kivy Android APK with Buildozer
+name: 云端自动编译Kivy Python安卓APK
+# 提交代码到main分支时自动触发打包
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
-  build:
+  build-apk:
+    # GitHub官方Ubuntu环境（和你WSL Ubuntu完全一样！）
     runs-on: ubuntu-latest
     steps:
-      - name: 检出你的Python代码
+      # 1. 自动拉取你仓库根目录全部代码（包括CloudFlareScan.py、buildozer.spec）
+      - name: 检出仓库全部代码
         uses: actions/checkout@v4
 
-      - name: 安装Ubuntu依赖环境
+      # 2. 自动安装Buildozer全套依赖（和你本地WSL安装完全一致）
+      - name: 安装系统依赖环境
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
 
-      - name: 配置Java环境
+      # 3. 配置Java环境（安卓打包必须）
+      - name: 配置Java环境变量
         run: |
-          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk" >> $GITHUB_ENV
 
-      - name: 安装Python虚拟环境&Buildozer
+      # 4. 安装Python虚拟环境 + Buildozer
+      - name: 安装Buildozer打包工具
         run: |
           python3 -m venv venv
           source venv/bin/activate
-          pip install buildozer cython==0.29.37
+          pip install buildozer cython==0.29.37 kivy==2.3.0
 
-      - name: 配置Buildozer代理（解决GitHub下载慢/失败，和你本地代理逻辑一致）
+      # 5. 自动执行打包！编译你根目录CloudFlareScan.py → APK
+      # GitHub云端原生网络，不用代理！不会出现你本地下载超时问题！
+      - name: Buildozer打包生成APK
         run: |
-          export HTTP_PROXY=http://127.0.0.1:7890
-          export HTTPS_PROXY=http://127.0.0.1:7890
-          # 执行打包
+          source venv/bin/activate
+          # 自动读取你仓库根目录的buildozer.spec配置 + 编译根目录py程序
           buildozer android debug
 
-      - name: 上传生成的APK到GitHub发布页
+      # 6. 打包完成，自动把APK上传到GitHub工作流页面下载
+      - name: 上传最终APK安装包
         uses: actions/upload-artifact@v4
         with:
-          name: kivy-apk-release
+          name: CloudFlareScan-安卓APK
           path: bin/*.apk
